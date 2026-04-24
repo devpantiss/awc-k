@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { mockAWCs } from '../../data/mockData';
 import { cn } from '../../utils';
 import { useTranslation } from '../../hooks/useTranslation';
-import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, ReferenceLine } from 'recharts';
+import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, ReferenceLine, Cell } from 'recharts';
 import { BookOpen, Target, BrainCircuit, AlertCircle, Download } from 'lucide-react';
 
 export function SupervisorLearning() {
@@ -149,7 +149,7 @@ export function SupervisorLearning() {
                 <ReferenceLine x={70} stroke="#10b981" strokeDasharray="3 3" label={{ position: 'top', value: 'Target Goal', fill: '#10b981', fontSize: 10 }} />
                 <Bar dataKey="score" fill="#0ea5e9" radius={[0, 4, 4, 0]} barSize={24}>
                   {chartData.map((entry, index) => (
-                    <cell key={`cell-${index}`} fill={entry.score < 60 ? '#f59e0b' : '#0ea5e9'} />
+                    <Cell key={`cell-${index}`} fill={entry.score < 60 ? '#f59e0b' : '#0ea5e9'} />
                   ))}
                 </Bar>
               </BarChart>

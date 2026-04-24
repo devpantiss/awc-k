@@ -51,7 +51,7 @@ export function SupervisorReports() {
         autoTable(doc, {
           startY: currentY,
           head: [['Worker Name', 'Block', 'Total Enrolled', 'Present Today', 'Attendance Rate']],
-          body: [[awc.workerName, awc.block, awc.totalChildren, awc.presentToday, `${awc.attendanceRate}%`]],
+          body: [[awc.workerName, awc.blockId, awc.totalChildren, awc.presentToday, `${awc.attendanceRate}%`]],
           theme: 'grid',
           headStyles: { fillColor: [16, 185, 129] },
           margin: { top: 10 }
@@ -238,7 +238,7 @@ export function SupervisorReports() {
                     <div className="flex justify-between items-start mb-4">
                       <div>
                         <h4 className="text-xl font-bold text-foreground">{awc.name}</h4>
-                        <p className="text-sm text-muted-foreground">{awc.workerName} • {awc.block}</p>
+                        <p className="text-sm text-muted-foreground">{awc.workerName} • {awc.blockId}</p>
                       </div>
                       <span className={cn(
                         "px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full",

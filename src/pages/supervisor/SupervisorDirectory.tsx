@@ -13,7 +13,7 @@ export function SupervisorDirectory() {
   const filteredAWCs = mockAWCs.filter(awc => 
     awc.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     awc.workerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    awc.block.toLowerCase().includes(searchTerm.toLowerCase())
+    awc.blockId.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -69,7 +69,7 @@ export function SupervisorDirectory() {
               <div className="flex items-center text-sm text-muted-foreground gap-2">
                 <span className="font-medium text-foreground/80">{awc.workerName}</span>
                 <span>•</span>
-                <span>{awc.block}</span>
+                <span>{awc.blockId}</span>
               </div>
             </div>
 

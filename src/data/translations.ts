@@ -1398,12 +1398,7 @@ export const translations: Record<'en' | 'od', Record<string, string>> = {
     'common.yes': 'ହଁ',
     'common.no': 'ନାହିଁ',
     'common.needs_help': 'ସାହାଯ୍ୟ ଆବଶ୍ୟକ',
-    'domain.cognitive': 'ଜ୍ଞାନଗତ',
-    'domain.language': 'ଭାଷା',
-    'domain.physical': 'ଶାରୀରିକ',
-    'domain.social': 'ସାମାଜିକ',
-    'domain.creativity': 'ସୃଜନଶୀଳତା',
-    'domain.nutrition': 'ପୋଷଣ',
+
     'data.badge.learner.title': 'ସକ୍ରିୟ ଶିକ୍ଷାର୍ଥୀ',
     'data.badge.learner.desc': 'ଏହି ସପ୍ତାହରେ ସମସ୍ତ ପାଞ୍ଚଟି କାର୍ଯ୍ୟକଳାପ ସମ୍ପୂର୍ଣ୍ଣ କରିଛି |',
     'data.badge.communicator.title': 'ଉତ୍ତମ ଯୋଗାଯୋଗକାରୀ',
