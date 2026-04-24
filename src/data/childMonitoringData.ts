@@ -2,6 +2,8 @@ import { mockChildren } from './mockData';
 
 export type ChildNutritionBand = 'Normal' | 'Moderate' | 'Severe';
 
+
+// add
 export type ManagedChild = {
   id: string;
   name: string;
