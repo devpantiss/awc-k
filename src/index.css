@@ -7,6 +7,44 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .supervisor-page-shell {
+    @apply space-y-8 pb-10 animate-fade-in;
+  }
+
+  .supervisor-hero {
+    @apply overflow-hidden rounded-[2rem] border shadow-sm;
+  }
+
+  .supervisor-hero-grid {
+    @apply flex flex-col gap-6 p-6 md:p-8 lg:flex-row lg:items-start lg:justify-between;
+  }
+
+  .supervisor-toolbar {
+    @apply flex flex-col gap-3 sm:flex-row sm:items-center;
+  }
+
+  .supervisor-select {
+    @apply min-w-[200px] rounded-2xl border border-border bg-white/85 px-4 py-3 text-sm font-medium text-foreground shadow-sm backdrop-blur focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-slate-900/70;
+  }
+
+  .supervisor-export-button {
+    @apply flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-500/20 transition-colors hover:bg-emerald-600 whitespace-nowrap;
+  }
+
+  .supervisor-kpi-card {
+    @apply relative overflow-hidden rounded-[1.75rem] border p-6 shadow-sm;
+  }
+
+  .supervisor-panel {
+    @apply rounded-[1.75rem] border border-border bg-card p-6 shadow-sm;
+  }
+
+  .supervisor-panel-muted {
+    @apply rounded-[1.5rem] border border-border bg-muted/20 p-4;
+  }
+}
+
 /* ---- CSS Custom Properties (Light Mode) ---- */
 @layer base {
   :root {
