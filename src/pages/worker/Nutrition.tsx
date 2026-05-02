@@ -7,10 +7,17 @@ import {
   CheckCircle,
   ClipboardList,
   HeartPulse,
+  Home,
   Plus,
+  Ruler,
   Save,
+  Scale,
   ShieldCheck,
+  Soup,
+  Stethoscope,
+  Utensils,
 } from 'lucide-react';
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import {
   managedChildren,
   monthlyIntakeByChild,
@@ -27,11 +34,19 @@ import { ToggleSwitch } from '../../components/ui/toggle-switch';
 import { cn } from '../../utils';
 
 type NutritionRecord = {
+  weight: number;
+  height: number;
+  muac: number;
   breastfeedingStatus: string;
   mealsPerDay: number;
   diversityScore: number;
+  foodGroups: string[];
   thrReceived: boolean;
   thrConsumed: boolean;
+  appetite: string;
+  illness: string;
+  edema: boolean;
+  homeVisitNeeded: boolean;
 };
 
 type NutritionEntryForm = NutritionRecord & {
@@ -42,18 +57,36 @@ type NutritionEntryForm = NutritionRecord & {
 };
 
 const defaultNutritionRecord: NutritionRecord = {
+  weight: 0,
+  height: 0,
+  muac: 0,
   breastfeedingStatus: 'Not recorded',
   mealsPerDay: 0,
   diversityScore: 0,
+  foodGroups: [],
   thrReceived: false,
   thrConsumed: false,
+  appetite: 'Normal',
+  illness: 'None',
+  edema: false,
+  homeVisitNeeded: false,
 };
+
+const foodGroupOptions = ['Grains', 'Pulses', 'Milk', 'Egg/Fish/Meat', 'Vegetables', 'Fruits', 'Fats'];
 
 function getTodayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
 function getNutritionBand(record: NutritionRecord): ChildNutritionBand {
+  if (record.edema || (record.muac > 0 && record.muac < 11.5)) {
+    return 'Severe';
+  }
+
+  if (record.muac >= 11.5 && record.muac < 12.5) {
+    return 'Moderate';
+  }
+
   if (record.diversityScore >= 75 && record.mealsPerDay >= 4 && record.thrReceived && record.thrConsumed) {
     return 'Normal';
   }
@@ -65,12 +98,14 @@ function getNutritionBand(record: NutritionRecord): ChildNutritionBand {
   return 'Severe';
 }
 
-function createEntryDraft(record: NutritionRecord): NutritionEntryForm {
+function createEntryDraft(record: Partial<NutritionRecord>): NutritionEntryForm {
   return {
+    ...defaultNutritionRecord,
     ...record,
+    foodGroups: record.foodGroups ?? [],
     entryDate: getTodayIso(),
     assignedWorker: 'AWC Worker',
-    followUpAction: 'Routine monitoring',
+    followUpAction: record.homeVisitNeeded ? 'Schedule home visit' : 'Routine monitoring',
     notes: '',
   };
 }
@@ -85,22 +120,61 @@ function formatMonthLabel(date: string) {
 export function Nutrition() {
   const [selectedChildId, setSelectedChildId] = useState(managedChildren[0].id);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [nutritionByChild, setNutritionByChild] = useState<Record<string, NutritionRecord>>(
-    nutritionTrackingByChild as Record<string, NutritionRecord>
+  const [nutritionByChild, setNutritionByChild] = useState<Record<string, Partial<NutritionRecord>>>(
+    nutritionTrackingByChild as Record<string, Partial<NutritionRecord>>
   );
   const [historyByChild, setHistoryByChild] = useState<Record<string, MonthlyIntake[]>>(monthlyIntakeByChild);
   const [entryForm, setEntryForm] = useState<NutritionEntryForm>(() =>
-    createEntryDraft((nutritionTrackingByChild as Record<string, NutritionRecord>)[managedChildren[0].id] ?? defaultNutritionRecord)
+    createEntryDraft((nutritionTrackingByChild as Record<string, Partial<NutritionRecord>>)[managedChildren[0].id] ?? defaultNutritionRecord)
   );
 
   const selectedChild = managedChildren.find((child) => child.id === selectedChildId);
-  const currentRecord = nutritionByChild[selectedChildId] ?? defaultNutritionRecord;
   const intakeHistory = historyByChild[selectedChildId] ?? [];
   const latestIntake = intakeHistory.at(-1);
+  const savedRecord = nutritionByChild[selectedChildId] ?? {};
+  const currentRecord = {
+    ...defaultNutritionRecord,
+    ...savedRecord,
+    weight: savedRecord.weight ?? latestIntake?.weight ?? 0,
+    height: savedRecord.height ?? latestIntake?.height ?? 0,
+    muac: savedRecord.muac ?? latestIntake?.muac ?? 0,
+  };
+  const nutritionTrendData = intakeHistory.map((entry) => ({
+    ...entry,
+    shortMonth: entry.month.split(' ')[0],
+  }));
+  const previousIntake = intakeHistory.at(-2);
+  const weightDelta = latestIntake && previousIntake ? Number((latestIntake.weight - previousIntake.weight).toFixed(1)) : 0;
+  const muacDelta = latestIntake && previousIntake ? Number((latestIntake.muac - previousIntake.muac).toFixed(1)) : 0;
+  const heightDelta = latestIntake && previousIntake ? Number((latestIntake.height - previousIntake.height).toFixed(1)) : 0;
+  const nutritionRoster = managedChildren.map((child) => {
+    const history = historyByChild[child.id] ?? [];
+    const latest = history.at(-1);
+    const saved = nutritionByChild[child.id] ?? {};
+    const record = {
+      ...defaultNutritionRecord,
+      ...saved,
+      weight: saved.weight ?? latest?.weight ?? 0,
+      height: saved.height ?? latest?.height ?? 0,
+      muac: saved.muac ?? latest?.muac ?? 0,
+    };
+    return {
+      child,
+      latest,
+      record,
+      status: getNutritionBand(record),
+    };
+  });
+  const nutritionStats = {
+    atRisk: nutritionRoster.filter((item) => item.status !== 'Normal').length,
+    severe: nutritionRoster.filter((item) => item.status === 'Severe').length,
+    thrPending: nutritionRoster.filter((item) => !item.record.thrConsumed).length,
+    avgDiversity: Math.round(nutritionRoster.reduce((sum, item) => sum + item.record.diversityScore, 0) / Math.max(1, nutritionRoster.length)),
+  };
 
   useEffect(() => {
     setEntryForm(createEntryDraft(currentRecord));
-  }, [selectedChildId, currentRecord]);
+  }, [selectedChildId]);
 
   const currentStatus = useMemo(() => getNutritionBand(currentRecord), [currentRecord]);
   const isNutritionOnTrack = currentStatus === 'Normal';
@@ -113,11 +187,19 @@ export function Nutrition() {
 
   const saveNutritionEntry = () => {
     const normalizedRecord: NutritionRecord = {
+      weight: Math.max(0, Number(entryForm.weight) || 0),
+      height: Math.max(0, Number(entryForm.height) || 0),
+      muac: Math.max(0, Number(entryForm.muac) || 0),
       breastfeedingStatus: entryForm.breastfeedingStatus.trim() || 'Not recorded',
       mealsPerDay: Math.max(0, Number(entryForm.mealsPerDay) || 0),
       diversityScore: Math.min(100, Math.max(0, Number(entryForm.diversityScore) || 0)),
+      foodGroups: entryForm.foodGroups,
       thrReceived: entryForm.thrReceived,
       thrConsumed: entryForm.thrConsumed,
+      appetite: entryForm.appetite,
+      illness: entryForm.illness,
+      edema: entryForm.edema,
+      homeVisitNeeded: entryForm.homeVisitNeeded,
     };
 
     const nutritionStatus = getNutritionBand(normalizedRecord);
@@ -127,10 +209,10 @@ export function Nutrition() {
     const nextHistoryEntry: MonthlyIntake = {
       month: formatMonthLabel(entryForm.entryDate),
       date: entryForm.entryDate,
-      weight: previousEntry?.weight ?? 0,
-      height: previousEntry?.height ?? 0,
-      muac: previousEntry?.muac ?? 0,
-      bmi: previousEntry?.bmi ?? 0,
+      weight: normalizedRecord.weight || previousEntry?.weight || 0,
+      height: normalizedRecord.height || previousEntry?.height || 0,
+      muac: normalizedRecord.muac || previousEntry?.muac || 0,
+      bmi: normalizedRecord.height > 0 ? Number((normalizedRecord.weight / ((normalizedRecord.height / 100) ** 2)).toFixed(1)) : previousEntry?.bmi ?? 0,
       learningScore: previousEntry?.learningScore ?? 0,
       attendanceRate: previousEntry?.attendanceRate ?? 0,
       nutritionStatus,
@@ -249,6 +331,53 @@ export function Nutrition() {
           <section className="rounded-[1.5rem] border border-border bg-card">
             <div className="border-b border-border px-5 py-4">
               <div className="flex items-center gap-2">
+                <Scale size={18} className="text-emerald-500" />
+                <div>
+                  <h4 className="font-semibold text-foreground">Growth Measurements</h4>
+                  <p className="text-xs text-muted-foreground">Record weight, height, and MUAC for the nutrition band calculation.</p>
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 p-5 md:grid-cols-3">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Weight (kg)</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={entryForm.weight}
+                  onChange={(event) => setEntryForm((current) => ({ ...current, weight: Number(event.target.value) }))}
+                  className="h-11 rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Height (cm)</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={entryForm.height}
+                  onChange={(event) => setEntryForm((current) => ({ ...current, height: Number(event.target.value) }))}
+                  className="h-11 rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">MUAC (cm)</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={entryForm.muac}
+                  onChange={(event) => setEntryForm((current) => ({ ...current, muac: Number(event.target.value) }))}
+                  className="h-11 rounded-xl"
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-[1.5rem] border border-border bg-card">
+            <div className="border-b border-border px-5 py-4">
+              <div className="flex items-center gap-2">
                 <Apple size={18} className="text-emerald-500" />
                 <div>
                   <h4 className="font-semibold text-foreground">Feeding Details</h4>
@@ -300,6 +429,97 @@ export function Nutrition() {
                   className="h-11 rounded-xl"
                 />
                 <Progress value={entryForm.diversityScore} className="h-3 bg-emerald-100 dark:bg-emerald-950/40" />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium text-foreground">Food Groups Consumed</label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {foodGroupOptions.map((group) => {
+                    const checked = entryForm.foodGroups.includes(group);
+                    return (
+                      <button
+                        key={group}
+                        type="button"
+                        onClick={() => setEntryForm((current) => ({
+                          ...current,
+                          foodGroups: checked
+                            ? current.foodGroups.filter((item) => item !== group)
+                            : [...current.foodGroups, group],
+                          diversityScore: Math.round(((checked ? entryForm.foodGroups.length - 1 : entryForm.foodGroups.length + 1) / foodGroupOptions.length) * 100),
+                        }))}
+                        className={cn(
+                          'rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors',
+                          checked
+                            ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300'
+                            : 'border-border bg-background/70 text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        {group}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-[1.5rem] border border-border bg-card">
+            <div className="border-b border-border px-5 py-4">
+              <div className="flex items-center gap-2">
+                <Stethoscope size={18} className="text-red-500" />
+                <div>
+                  <h4 className="font-semibold text-foreground">Care Signals</h4>
+                  <p className="text-xs text-muted-foreground">Capture symptoms that can change nutrition risk and follow-up priority.</p>
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 p-5 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Appetite</label>
+                <Select
+                  value={entryForm.appetite}
+                  onValueChange={(value) => setEntryForm((current) => ({ ...current, appetite: value }))}
+                >
+                  <SelectTrigger className="h-11 rounded-xl">
+                    <SelectValue placeholder="Select appetite" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Normal">Normal</SelectItem>
+                    <SelectItem value="Reduced">Reduced</SelectItem>
+                    <SelectItem value="Poor">Poor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Recent Illness</label>
+                <Select
+                  value={entryForm.illness}
+                  onValueChange={(value) => setEntryForm((current) => ({ ...current, illness: value }))}
+                >
+                  <SelectTrigger className="h-11 rounded-xl">
+                    <SelectValue placeholder="Select illness" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="None">None</SelectItem>
+                    <SelectItem value="Fever">Fever</SelectItem>
+                    <SelectItem value="Diarrhea">Diarrhea</SelectItem>
+                    <SelectItem value="Cough">Cough</SelectItem>
+                    <SelectItem value="Multiple symptoms">Multiple symptoms</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="rounded-2xl border border-border bg-background/70 p-4">
+                <ToggleSwitch
+                  checked={entryForm.edema}
+                  onCheckedChange={(checked) => setEntryForm((current) => ({ ...current, edema: checked }))}
+                  label="Bilateral edema observed"
+                />
+              </div>
+              <div className="rounded-2xl border border-border bg-background/70 p-4">
+                <ToggleSwitch
+                  checked={entryForm.homeVisitNeeded}
+                  onCheckedChange={(checked) => setEntryForm((current) => ({ ...current, homeVisitNeeded: checked }))}
+                  label="Home visit needed"
+                />
               </div>
             </div>
           </section>
@@ -391,7 +611,13 @@ export function Nutrition() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={() => setIsDrawerOpen(true)} className="h-12 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white gap-2 px-6">
+            <Button
+              onClick={() => {
+                setEntryForm(createEntryDraft(currentRecord));
+                setIsDrawerOpen(true);
+              }}
+              className="h-12 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white gap-2 px-6"
+            >
               <Plus size={18} />
               Add Entry
             </Button>
@@ -399,8 +625,77 @@ export function Nutrition() {
         </div>
       </section>
 
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: 'Children at risk', value: nutritionStats.atRisk, detail: `${nutritionStats.severe} severe priority`, icon: AlertTriangle, tone: 'red' },
+          { label: 'Avg diversity', value: `${nutritionStats.avgDiversity}%`, detail: 'Food group coverage', icon: Utensils, tone: 'emerald' },
+          { label: 'THR pending', value: nutritionStats.thrPending, detail: 'Received or consumed gap', icon: Soup, tone: 'amber' },
+          { label: 'Selected MUAC', value: `${currentRecord.muac || '-'} cm`, detail: `${muacDelta >= 0 ? '+' : ''}${muacDelta} cm since last record`, icon: Ruler, tone: currentStatus === 'Normal' ? 'sky' : 'amber' },
+        ].map((metric) => (
+          <div key={metric.label} className="rounded-[1.75rem] border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">{metric.label}</p>
+                <p className="mt-2 text-2xl font-bold text-foreground">{metric.value}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{metric.detail}</p>
+              </div>
+              <div className={cn(
+                'flex h-10 w-10 items-center justify-center rounded-2xl',
+                metric.tone === 'emerald' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+                metric.tone === 'amber' && 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+                metric.tone === 'red' && 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+                metric.tone === 'sky' && 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300',
+              )}>
+                <metric.icon size={18} />
+              </div>
+            </div>
+          </div>
+        ))}
+      </section>
+
       <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-6">
+          <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">Growth signal</p>
+                <h3 className="mt-2 text-lg font-semibold text-foreground">Weight, MUAC, Height, and Nutrition Status</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Latest movement: {weightDelta >= 0 ? '+' : ''}{weightDelta} kg, {muacDelta >= 0 ? '+' : ''}{muacDelta} cm MUAC, and {heightDelta >= 0 ? '+' : ''}{heightDelta} cm height.
+                </p>
+              </div>
+              <BadgeLikeStatus status={currentStatus} />
+            </div>
+            <div className="mt-5 h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={nutritionTrendData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="shortMonth" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+                  <YAxis yAxisId="growth" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} domain={['dataMin - 1', 'dataMax + 2']} />
+                  <YAxis yAxisId="height" orientation="right" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} domain={['dataMin - 2', 'dataMax + 2']} />
+                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '0.9rem', border: '1px solid hsl(var(--border))', fontSize: '12px' }} />
+                  <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 600 }} />
+                  <Line yAxisId="growth" type="monotone" dataKey="weight" name="Weight (kg)" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3, fill: '#10b981' }} />
+                  <Line yAxisId="growth" type="monotone" dataKey="muac" name="MUAC (cm)" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3, fill: '#f59e0b' }} />
+                  <Line yAxisId="height" type="monotone" dataKey="height" name="Height (cm)" stroke="#0ea5e9" strokeWidth={2.5} dot={{ r: 3, fill: '#0ea5e9' }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {nutritionTrendData.slice(-6).map((entry) => (
+                <div key={`${entry.date}-${entry.nutritionStatus}`} className="rounded-2xl border border-border bg-background/70 px-3 py-2.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-bold text-foreground">{entry.month}</p>
+                    <BadgeLikeStatus status={entry.nutritionStatus} />
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {entry.weight} kg • {entry.height} cm • MUAC {entry.muac} cm
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
             <div className="flex items-start justify-between">
               <div>
@@ -455,6 +750,37 @@ export function Nutrition() {
         </div>
 
         <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+          <div className="mb-6 rounded-[1.5rem] border border-border bg-background/70 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                <ClipboardList size={18} />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-foreground">What to Monitor</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Anganwadi nutrition status should combine growth, feeding, service delivery, illness, and follow-up data.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-2">
+              {[
+                { icon: Scale, label: 'Anthropometry', value: 'weight, height, BMI, MUAC, edema' },
+                { icon: Utensils, label: 'Diet quality', value: 'meals/day and food groups consumed' },
+                { icon: Soup, label: 'Supplementary nutrition', value: 'THR received, consumed, and gaps' },
+                { icon: Stethoscope, label: 'Health signals', value: 'appetite, fever, diarrhea, cough' },
+                { icon: Home, label: 'Action tracking', value: 'home visit, referral, counselling notes' },
+              ].map((item) => (
+                <div key={item.label} className="flex items-start gap-3 rounded-2xl border border-border bg-card px-3 py-2.5">
+                  <item.icon size={16} className="mt-0.5 shrink-0 text-primary" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{item.label}</p>
+                    <p className="text-xs text-muted-foreground">{item.value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">Project tracker</p>
@@ -495,6 +821,8 @@ export function Nutrition() {
               <tr>
                 <th className="px-5 py-3 font-medium">Month</th>
                 <th className="px-5 py-3 font-medium">Date Verified</th>
+                <th className="px-5 py-3 font-medium">Weight</th>
+                <th className="px-5 py-3 font-medium">MUAC</th>
                 <th className="px-5 py-3 font-medium">Status</th>
                 <th className="px-5 py-3 font-medium text-right">Notes & Actions</th>
               </tr>
@@ -506,6 +834,8 @@ export function Nutrition() {
                   <td className="whitespace-nowrap px-5 py-3 text-muted-foreground">
                     {new Date(record.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </td>
+                  <td className="whitespace-nowrap px-5 py-3 text-muted-foreground">{record.weight} kg</td>
+                  <td className="whitespace-nowrap px-5 py-3 text-muted-foreground">{record.muac} cm</td>
                   <td className="px-5 py-3">
                     <span
                       className={cn(
@@ -526,5 +856,20 @@ export function Nutrition() {
         </div>
       </section>
     </div>
+  );
+}
+
+function BadgeLikeStatus({ status }: { status: ChildNutritionBand }) {
+  return (
+    <span
+      className={cn(
+        'w-fit rounded-full px-3 py-1 text-xs font-bold uppercase',
+        status === 'Normal' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+        status === 'Moderate' && 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+        status === 'Severe' && 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+      )}
+    >
+      {status}
+    </span>
   );
 }

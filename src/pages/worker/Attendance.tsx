@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   AlertTriangle,
@@ -15,6 +15,7 @@ import {
   History,
   Info,
   LineChart as LineChartIcon,
+  Phone,
   Plus,
   Ruler,
   Scale,
@@ -827,69 +828,134 @@ export function Attendance() {
       <SideDrawer
         open={registrationOpen}
         onOpenChange={setRegistrationOpen}
-        title="Register New Candidate"
-        description="Add a child candidate without leaving the attendance screen."
+        title="Register New Child"
+        description="Add a child record without leaving the attendance screen."
+        className="sm:max-w-3xl"
         footer={
-          <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => setRegistrationOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="button" onClick={handleRegisterCandidate}>
-              Register Candidate
-            </Button>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              New children are marked present for today and opened in metric tracking after save.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={() => setRegistrationOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" form="attendance-registration-form">
+                Register Child
+              </Button>
+            </div>
           </div>
         }
       >
-        <div className="grid gap-5">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Child Name</label>
-              <Input value={registrationForm.name} onChange={(event) => setRegistrationForm((current) => ({ ...current, name: event.target.value }))} />
-              {registrationErrors.name ? <p className="text-xs text-red-500">{registrationErrors.name}</p> : null}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Date of Birth</label>
-              <Input type="date" value={registrationForm.dob} onChange={(event) => setRegistrationForm((current) => ({ ...current, dob: event.target.value }))} />
-              {registrationErrors.dob ? <p className="text-xs text-red-500">{registrationErrors.dob}</p> : null}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Gender</label>
-              <Select value={registrationForm.gender} onValueChange={(value: 'Male' | 'Female') => setRegistrationForm((current) => ({ ...current, gender: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select gender" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Male">Male</SelectItem>
-                  <SelectItem value="Female">Female</SelectItem>
-                </SelectContent>
-              </Select>
-              {registrationErrors.gender ? <p className="text-xs text-red-500">{registrationErrors.gender}</p> : null}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Parent Name</label>
-              <Input value={registrationForm.parentName} onChange={(event) => setRegistrationForm((current) => ({ ...current, parentName: event.target.value }))} />
-              {registrationErrors.parentName ? <p className="text-xs text-red-500">{registrationErrors.parentName}</p> : null}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Phone Number</label>
-              <Input
-                value={registrationForm.phoneNumber}
-                onChange={(event) => setRegistrationForm((current) => ({ ...current, phoneNumber: event.target.value.replace(/\D/g, '').slice(0, 10) }))}
-              />
-              {registrationErrors.phoneNumber ? <p className="text-xs text-red-500">{registrationErrors.phoneNumber}</p> : null}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Birth Weight</label>
-              <Input
-                type="number"
-                step="0.1"
-                value={registrationForm.birthWeight}
-                onChange={(event) => setRegistrationForm((current) => ({ ...current, birthWeight: event.target.value }))}
-              />
-              {registrationErrors.birthWeight ? <p className="text-xs text-red-500">{registrationErrors.birthWeight}</p> : null}
+        <form id="attendance-registration-form" onSubmit={(event) => { event.preventDefault(); handleRegisterCandidate(); }} className="space-y-5">
+          <div className="rounded-2xl border border-border bg-muted/30 p-1">
+            <div className="grid gap-1 sm:grid-cols-3">
+              {[
+                { label: 'Profile', icon: UserPlus },
+                { label: 'Guardian', icon: Phone },
+                { label: 'Baseline', icon: Scale },
+              ].map((step) => (
+                <div
+                  key={step.label}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-card px-3 py-2 text-xs font-bold uppercase tracking-wider text-foreground shadow-sm"
+                >
+                  <step.icon size={14} className="text-primary" />
+                  {step.label}
+                </div>
+              ))}
             </div>
           </div>
-        </div>
+
+          <AttendanceFormSection
+            icon={UserPlus}
+            title="Child Profile"
+            description="Core identity fields used across attendance, nutrition, and development tracking."
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <AttendanceFormField label="Child Name" error={registrationErrors.name}>
+                <Input
+                  value={registrationForm.name}
+                  onChange={(event) => setRegistrationForm((current) => ({ ...current, name: event.target.value }))}
+                  placeholder="Enter child name"
+                />
+              </AttendanceFormField>
+
+              <AttendanceFormField label="Date of Birth" error={registrationErrors.dob}>
+                <Input
+                  type="date"
+                  value={registrationForm.dob}
+                  onChange={(event) => setRegistrationForm((current) => ({ ...current, dob: event.target.value }))}
+                />
+              </AttendanceFormField>
+
+              <AttendanceFormField label="Gender" error={registrationErrors.gender}>
+                <Select value={registrationForm.gender} onValueChange={(value: 'Male' | 'Female') => setRegistrationForm((current) => ({ ...current, gender: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </AttendanceFormField>
+
+              <AttendanceFormField label="Calculated Age">
+                <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm font-medium text-muted-foreground">
+                  {registrationForm.dob ? getAgeLabel(registrationForm.dob) : 'Select date of birth'}
+                </div>
+              </AttendanceFormField>
+            </div>
+          </AttendanceFormSection>
+
+          <AttendanceFormSection
+            icon={Phone}
+            title="Guardian Details"
+            description="Contact information for service updates, visits, and parent engagement."
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <AttendanceFormField label="Parent Name" error={registrationErrors.parentName}>
+                <Input
+                  value={registrationForm.parentName}
+                  onChange={(event) => setRegistrationForm((current) => ({ ...current, parentName: event.target.value }))}
+                  placeholder="Enter parent name"
+                />
+              </AttendanceFormField>
+
+              <AttendanceFormField label="Phone Number" error={registrationErrors.phoneNumber}>
+                <Input
+                  value={registrationForm.phoneNumber}
+                  onChange={(event) => setRegistrationForm((current) => ({ ...current, phoneNumber: event.target.value.replace(/\D/g, '').slice(0, 10) }))}
+                  placeholder="10-digit mobile number"
+                />
+              </AttendanceFormField>
+            </div>
+          </AttendanceFormSection>
+
+          <AttendanceFormSection
+            icon={ClipboardList}
+            title="Health Baseline"
+            description="Starting values used when today's attendance registration opens metric tracking."
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <AttendanceFormField label="Birth Weight" error={registrationErrors.birthWeight}>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={registrationForm.birthWeight}
+                  onChange={(event) => setRegistrationForm((current) => ({ ...current, birthWeight: event.target.value }))}
+                  placeholder="Weight in kg"
+                />
+              </AttendanceFormField>
+
+              <AttendanceFormField label="Nutrition Status">
+                <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm font-medium text-muted-foreground">
+                  Normal
+                </div>
+              </AttendanceFormField>
+            </div>
+          </AttendanceFormSection>
+        </form>
       </SideDrawer>
 
       {/* ═══ Metrics Drawer — Tabbed ═══ */}
@@ -1233,6 +1299,53 @@ export function Attendance() {
           </Tabs.Root>
         </div>
       </SideDrawer>
+    </div>
+  );
+}
+
+function AttendanceFormSection({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: typeof UserPlus;
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-border bg-card">
+      <div className="border-b border-border px-4 py-3">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Icon size={17} />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-foreground">{title}</h3>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+          </div>
+        </div>
+      </div>
+      <div className="p-4">{children}</div>
+    </section>
+  );
+}
+
+function AttendanceFormField({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</label>
+      {children}
+      {error ? <p className="text-xs font-medium text-red-500">{error}</p> : null}
     </div>
   );
 }

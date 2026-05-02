@@ -5,15 +5,36 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockAWCs } from '../../data/mockData';
+import { mockAWCs, mockChildren } from '../../data/mockData';
 import { cn } from '../../utils';
-import { ResponsiveContainer, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Area } from 'recharts';
-import { HeartPulse, Utensils, Apple, CheckCircle2, Download, PackageSearch, Soup } from 'lucide-react';
+import { ResponsiveContainer, AreaChart, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Area, Bar, Legend } from 'recharts';
+import { HeartPulse, Utensils, Apple, CheckCircle2, Download, PackageSearch, Soup, AlertTriangle, Users, TrendingUp } from 'lucide-react';
 import { getNutritionNarrative, getTHRMetrics } from '../../data/supervisorInsights';
+
+type NutritionBand = 'Normal' | 'MAM' | 'SAM';
+
+const nutritionTone: Record<NutritionBand, string> = {
+  Normal: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+  MAM: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+  SAM: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+};
+
+function normalizeNutritionStatus(status: string): NutritionBand {
+  if (status === 'status.sam' || status === 'SAM') return 'SAM';
+  if (status === 'status.mam' || status === 'MAM') return 'MAM';
+  return 'Normal';
+}
+
+function predictNutritionBand(muacMm: number): NutritionBand {
+  if (muacMm < 115) return 'SAM';
+  if (muacMm < 125) return 'MAM';
+  return 'Normal';
+}
 
 export function SupervisorNutrition() {
   const navigate = useNavigate();
   const [selectedAWC, setSelectedAWC] = useState<string>('all');
+  const isCentreDetail = selectedAWC !== 'all';
 
   const filteredAWCs = selectedAWC === 'all' ? mockAWCs : mockAWCs.filter(a => a.id === selectedAWC);
 
@@ -23,6 +44,8 @@ export function SupervisorNutrition() {
   }));
 
   const totalRegistered = filteredAWCs.reduce((acc, awc) => acc + awc.totalChildren, 0);
+  const totalSAM = filteredAWCs.reduce((acc, awc) => acc + awc.nutritionBreakdown.sam, 0);
+  const totalMAM = filteredAWCs.reduce((acc, awc) => acc + awc.nutritionBreakdown.mam, 0);
   const totalTHRDelivery = awcTHRData.reduce((acc, awc) => acc + awc.beneficiariesCovered, 0);
   const thrCoverageRate = Math.round((totalTHRDelivery / totalRegistered) * 100) || 0;
   const avgDietaryScore = awcTHRData.length
@@ -35,6 +58,73 @@ export function SupervisorNutrition() {
   const nutritionPriorityQueue = [...awcTHRData]
     .sort((a, b) => ((80 - b.thrCoverage) + (3.8 - b.mddScore) * 10) - ((80 - a.thrCoverage) + (3.8 - a.mddScore) * 10))
     .slice(0, 3);
+  const centreNutritionProfiles = mockAWCs
+    .map((awc) => ({
+      ...awc,
+      ...getTHRMetrics(awc),
+    }))
+    .map((awc) => {
+      const children = mockChildren.filter((child) => child.awcId === awc.id);
+      const childCount = children.length || awc.totalChildren;
+      const riskChildren = children.filter((child) => normalizeNutritionStatus(child.nutritionStatus) !== 'Normal').length || (awc.nutritionBreakdown.sam + awc.nutritionBreakdown.mam);
+      const priorityScore = awc.nutritionBreakdown.sam * 4 + awc.nutritionBreakdown.mam * 2 + Math.max(0, 85 - awc.thrCoverage) + Math.max(0, 3.8 - awc.mddScore) * 10;
+
+      return {
+        ...awc,
+        childCount,
+        riskChildren,
+        priorityScore,
+      };
+    })
+    .sort((a, b) => b.priorityScore - a.priorityScore);
+  const workerNutritionProfiles = awcTHRData
+    .map((awc) => {
+      const children = mockChildren.filter((child) => child.awcId === awc.id);
+      const childCount = children.length || awc.totalChildren;
+      const riskChildren = children.filter((child) => normalizeNutritionStatus(child.nutritionStatus) !== 'Normal').length || (awc.nutritionBreakdown.sam + awc.nutritionBreakdown.mam);
+      const priorityScore = awc.nutritionBreakdown.sam * 4 + awc.nutritionBreakdown.mam * 2 + Math.max(0, 85 - awc.thrCoverage) + Math.max(0, 3.8 - awc.mddScore) * 10;
+
+      return {
+        ...awc,
+        childCount,
+        riskChildren,
+        priorityScore,
+      };
+    })
+    .sort((a, b) => b.priorityScore - a.priorityScore);
+  const childNutritionForecasts = mockChildren
+    .filter((child) => selectedAWC === 'all' || child.awcId === selectedAWC)
+    .map((child) => {
+      const history = child.nutritionHistory ?? [];
+      const latest = history.at(-1);
+      const previous = history.at(-2);
+      const muacGain = latest && previous ? latest.muac - previous.muac : 0;
+      const projectedMuac = latest ? Math.round(latest.muac + muacGain) : 125;
+      const predictedBand = predictNutritionBand(projectedMuac);
+
+      return {
+        id: child.id,
+        name: child.name,
+        awc: mockAWCs.find((awc) => awc.id === child.awcId),
+        currentBand: normalizeNutritionStatus(child.nutritionStatus),
+        predictedBand,
+        projectedMuac,
+        attendance: child.attendanceRate,
+        learning: child.learningScore,
+        riskRank: predictedBand === 'SAM' ? 0 : predictedBand === 'MAM' ? 1 : 2,
+      };
+    })
+    .sort((a, b) => a.riskRank - b.riskRank || a.attendance - b.attendance)
+    .slice(0, 8);
+  const centreNutritionPatternData = centreNutritionProfiles.map((awc) => ({
+    name: awc.name.replace('AWC ', ''),
+    Normal: awc.nutritionBreakdown.normal,
+    MAM: awc.nutritionBreakdown.mam,
+    SAM: awc.nutritionBreakdown.sam,
+    thrCoverage: awc.thrCoverage,
+    mddScore: awc.mddScore,
+    riskChildren: awc.riskChildren,
+  }));
 
   const chartData = [
     { name: 'Week 1', coverage: 82 },
@@ -86,8 +176,12 @@ export function SupervisorNutrition() {
               <Apple size={14} />
               Supervisor Nutrition View
             </div>
-            <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground md:text-4xl">Nutrition Tracking</h2>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground md:text-base">Separate delivery bottlenecks from counselling gaps, compare THR reach with dietary diversity, and quickly surface which centres need supply action versus family-level behaviour support.</p>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground md:text-4xl">Centre Nutrition Pattern Tracking</h2>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground md:text-base">
+              {isCentreDetail
+                ? 'Detailed nutrition view for the selected centre, including THR delivery, dietary diversity, MAM/SAM load, and child-wise forecast.'
+                : 'Compare nutrition patterns across centres first: MAM/SAM distribution, THR delivery, dietary diversity, and children needing follow-up. Select any centre to open the details page.'}
+            </p>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/30">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">THR Reach</p>
@@ -112,7 +206,7 @@ export function SupervisorNutrition() {
               value={selectedAWC}
               onChange={(e) => setSelectedAWC(e.target.value)}
             >
-              <option value="all">All Centres</option>
+              <option value="all">All Centres Overview</option>
               {mockAWCs.map(awc => (
                 <option key={awc.id} value={awc.id}>{awc.name}</option>
               ))}
@@ -125,7 +219,7 @@ export function SupervisorNutrition() {
         </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-5">
         <div className="supervisor-kpi-card border-emerald-200/70 bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(236,253,245,0.88))] dark:border-emerald-900/40 dark:bg-[linear-gradient(145deg,rgba(6,78,59,0.28),rgba(2,6,23,0.92))]">
            <div className="flex items-center justify-between">
               <div>
@@ -167,8 +261,184 @@ export function SupervisorNutrition() {
               </div>
            </div>
         </div>
+
+        <div className="supervisor-kpi-card border-amber-200/70 bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(255,251,235,0.88))] dark:border-amber-900/40 dark:bg-[linear-gradient(145deg,rgba(120,53,15,0.26),rgba(2,6,23,0.92))]">
+           <div className="flex items-center justify-between">
+              <div>
+               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">MAM Children</p>
+               <p className="mt-3 text-4xl font-bold text-amber-500">{totalMAM}</p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+               <TrendingUp size={20} />
+              </div>
+           </div>
+        </div>
+
+        <div className="supervisor-kpi-card border-red-200/70 bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(254,242,242,0.9))] dark:border-red-900/40 dark:bg-[linear-gradient(145deg,rgba(127,29,29,0.28),rgba(2,6,23,0.92))]">
+           <div className="flex items-center justify-between">
+              <div>
+               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">SAM Children</p>
+               <p className="mt-3 text-4xl font-bold text-red-500">{totalSAM}</p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300">
+               <AlertTriangle size={20} />
+              </div>
+           </div>
+        </div>
       </div>
 
+      {!isCentreDetail && (
+        <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+          <div className="supervisor-panel">
+            <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Nutrition pattern map</p>
+                <h3 className="text-lg font-semibold text-foreground">Normal, MAM, and SAM by Centre</h3>
+                <p className="mt-1 text-sm text-muted-foreground">Stacked view helps identify whether risk is concentrated in a few centres or spread across the block.</p>
+              </div>
+              <div className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                Select a centre below for details
+              </div>
+            </div>
+            <div className="h-[330px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={centreNutritionPatternData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+                  <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
+                  <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                  <Bar dataKey="Normal" stackId="nutrition" fill="#10b981" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="MAM" stackId="nutrition" fill="#f59e0b" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="SAM" stackId="nutrition" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="supervisor-panel">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Pattern signals</p>
+                <h3 className="mt-2 text-lg font-semibold text-foreground">THR and Diet Quality</h3>
+              </div>
+              <PackageSearch className="text-amber-500" size={20} />
+            </div>
+            <div className="mt-5 space-y-3">
+              {centreNutritionProfiles.slice(0, 5).map((awc) => (
+                <button
+                  key={awc.id}
+                  type="button"
+                  onClick={() => setSelectedAWC(awc.id)}
+                  className="w-full rounded-2xl border border-border bg-background/70 p-4 text-left transition-colors hover:bg-accent"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-foreground">{awc.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{awc.workerName}</p>
+                    </div>
+                    <span className={cn(
+                      'rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider',
+                      awc.priorityScore >= 25 && 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+                      awc.priorityScore < 25 && awc.priorityScore >= 12 && 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+                      awc.priorityScore < 12 && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+                    )}>
+                      {awc.priorityScore >= 25 ? 'Priority' : awc.priorityScore >= 12 ? 'Watch' : 'Stable'}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                    <div className="rounded-xl bg-card px-3 py-2">
+                      <p className="text-muted-foreground">THR</p>
+                      <p className="mt-1 font-bold text-foreground">{awc.thrCoverage}%</p>
+                    </div>
+                    <div className="rounded-xl bg-card px-3 py-2">
+                      <p className="text-muted-foreground">MDD</p>
+                      <p className="mt-1 font-bold text-foreground">{awc.mddScore}/5</p>
+                    </div>
+                    <div className="rounded-xl bg-card px-3 py-2">
+                      <p className="text-muted-foreground">At Risk</p>
+                      <p className="mt-1 font-bold text-foreground">{awc.riskChildren}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="supervisor-panel">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              {isCentreDetail ? 'Selected Centre' : 'Centre selection'}
+            </p>
+            <h3 className="mt-2 text-xl font-semibold text-foreground">
+              {isCentreDetail ? 'Centre Nutrition Detail' : 'Centre Nutrition Pattern Cards'}
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {isCentreDetail
+                ? 'Selected centre view with worker ownership and current nutrition signals.'
+                : 'Each card summarizes one centre pattern across THR, MDD, SAM, and MAM.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => isCentreDetail ? setSelectedAWC('all') : navigate('/supervisor/awc-list')}
+            className="rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+          >
+            {isCentreDetail ? 'Back to All Centres' : 'Open Worker Directory'}
+          </button>
+        </div>
+
+        <div className="mt-6 grid gap-4 xl:grid-cols-3">
+          {(isCentreDetail ? workerNutritionProfiles : centreNutritionProfiles).map((awc) => (
+            <button
+              key={awc.id}
+              type="button"
+              onClick={() => setSelectedAWC(awc.id)}
+              className="rounded-[1.6rem] border border-border bg-background/70 p-4 text-left transition-all hover:-translate-y-0.5 hover:bg-accent hover:shadow-md"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-bold text-foreground">{awc.workerName}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{awc.name}</p>
+                </div>
+                <span className={cn(
+                  'rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider',
+                  awc.priorityScore >= 25 && 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+                  awc.priorityScore < 25 && awc.priorityScore >= 12 && 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+                  awc.priorityScore < 12 && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+                )}>
+                  {awc.priorityScore >= 25 ? 'Priority' : awc.priorityScore >= 12 ? 'Watch' : 'Stable'}
+                </span>
+              </div>
+
+              <div className="mt-4 grid grid-cols-4 gap-2">
+                {[
+                  { label: 'THR', value: `${awc.thrCoverage}%`, tone: awc.thrCoverage >= 90 ? 'text-emerald-600' : awc.thrCoverage >= 80 ? 'text-amber-600' : 'text-red-600' },
+                  { label: 'MDD', value: awc.mddScore, tone: awc.mddScore >= 3.8 ? 'text-emerald-600' : awc.mddScore >= 3.4 ? 'text-amber-600' : 'text-red-600' },
+                  { label: 'SAM', value: awc.nutritionBreakdown.sam, tone: awc.nutritionBreakdown.sam > 0 ? 'text-red-600' : 'text-emerald-600' },
+                  { label: 'MAM', value: awc.nutritionBreakdown.mam, tone: awc.nutritionBreakdown.mam > 0 ? 'text-amber-600' : 'text-emerald-600' },
+                ].map((metric) => (
+                  <div key={metric.label} className="rounded-2xl border border-border bg-card px-3 py-2 text-center">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{metric.label}</p>
+                    <p className={cn('mt-1 text-sm font-bold', metric.tone)}>{metric.value}</p>
+                  </div>
+                ))}
+              </div>
+              {!isCentreDetail && (
+                <p className="mt-3 text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  View Details
+                </p>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {isCentreDetail && (
+        <>
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="supervisor-panel border-amber-100 bg-amber-50/70 dark:border-amber-900/30 dark:bg-amber-950/10">
           <div className="flex items-start justify-between gap-4">
@@ -327,10 +597,70 @@ export function SupervisorNutrition() {
           </div>
         </div>
       </div>
+
+      <div className="supervisor-panel">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Next month forecast</p>
+            <h3 className="mt-2 text-xl font-semibold text-foreground">Child-wise Nutrition Category Prediction</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Children most likely to remain or move into MAM/SAM based on current nutrition history.</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground">
+            <Users size={16} />
+            {childNutritionForecasts.length} shown
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3 lg:grid-cols-2">
+          {childNutritionForecasts.map((child) => (
+            <button
+              key={child.id}
+              type="button"
+              onClick={() => navigate(`/supervisor/child/${child.id}`, { state: { from: `/supervisor/nutrition`, fromLabel: 'Nutrition Tracking' } })}
+              className="rounded-2xl border border-border bg-background/70 p-4 text-left transition-colors hover:bg-accent"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-bold text-foreground">{child.name}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{child.awc?.workerName ?? 'Worker'} · {child.awc?.name ?? 'AWC'}</p>
+                </div>
+                <span className={cn('rounded-full px-2.5 py-1 text-xs font-bold', nutritionTone[child.predictedBand])}>{child.predictedBand}</span>
+              </div>
+              <div className="mt-4 grid grid-cols-4 gap-2 text-xs">
+                <div className="rounded-xl bg-card px-3 py-2">
+                  <p className="text-muted-foreground">Current</p>
+                  <p className="mt-1 font-bold text-foreground">{child.currentBand}</p>
+                </div>
+                <div className="rounded-xl bg-card px-3 py-2">
+                  <p className="text-muted-foreground">MUAC</p>
+                  <p className="mt-1 font-bold text-foreground">{child.projectedMuac} mm</p>
+                </div>
+                <div className="rounded-xl bg-card px-3 py-2">
+                  <p className="text-muted-foreground">Attendance</p>
+                  <p className="mt-1 font-bold text-foreground">{child.attendance}%</p>
+                </div>
+                <div className="rounded-xl bg-card px-3 py-2">
+                  <p className="text-muted-foreground">Learning</p>
+                  <p className="mt-1 font-bold text-foreground">{child.learning}%</p>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+        </>
+      )}
       
       <div className="overflow-hidden rounded-[1.75rem] border border-border bg-card shadow-sm">
         <div className="px-6 py-5 border-b border-border flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-foreground">Dietary Diversity & Nutrition Ledger</h3>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">
+                {isCentreDetail ? 'Selected Centre Nutrition Ledger' : 'Centre-wise Nutrition Ledger'}
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {isCentreDetail ? 'Detailed ledger for the selected centre.' : 'Select a centre row to open its details.'}
+              </p>
+            </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -346,8 +676,8 @@ export function SupervisorNutrition() {
             </thead>
             <tbody>
               {awcTHRData.map((awc) => (
-                <tr key={awc.id} className="border-b border-border/50 hover:bg-muted/10 transition-colors">
-                  <td className="px-6 py-4 font-medium text-foreground cursor-pointer hover:text-sky-500 transition-colors" onClick={() => navigate(`/supervisor/awc/${awc.id}`)}>
+                <tr key={awc.id} className="cursor-pointer border-b border-border/50 transition-colors hover:bg-muted/10" onClick={() => setSelectedAWC(awc.id)}>
+                  <td className="px-6 py-4 font-medium text-foreground hover:text-sky-500 transition-colors">
                     {awc.name}
                   </td>
                   <td className="px-6 py-4 text-muted-foreground">{awc.workerName}</td>

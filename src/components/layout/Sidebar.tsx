@@ -10,8 +10,8 @@ import { cn } from '../../utils';
 import { useTranslation } from '../../hooks/useTranslation';
 import {
   LayoutDashboard, Users, Brain, BookOpen, Activity,
-  BarChart3, Map, Settings, ChevronLeft, ChevronRight, ChevronDown,
-  LogOut, Sparkles, ClipboardList, PenTool, HeartPulse, Syringe, Baby, CalendarDays, ShieldPlus, FileBarChart2, AlertCircle,
+  Map, Settings, ChevronLeft, ChevronRight, ChevronDown,
+  LogOut, Sparkles, ClipboardList, PenTool, HeartPulse, Syringe, CalendarDays, FileBarChart2, AlertCircle, WifiOff, Lightbulb
 } from 'lucide-react';
 
 const workerNavGroups = [
@@ -21,32 +21,40 @@ const workerNavGroups = [
     items: [{ name: 'Dashboard', icon: LayoutDashboard, path: '/worker' }],
   },
   {
-    label: 'Attendance',
+    label: 'Children',
     collapsible: true,
     items: [
-      { name: 'Daily Attendance', icon: CalendarDays, path: '/worker/attendance' },
-      { name: 'Critical Alerts', icon: AlertCircle, path: '/worker/alerts' },
+      { name: 'All Children', icon: Users, path: '/worker/children' },
     ],
   },
   {
-    label: 'Learning Modules',
+    label: 'Learning',
     collapsible: true,
     items: [
-      { name: 'Learning Journey', icon: BookOpen, path: '/worker/learning' },
-      { name: 'Development', icon: Baby, path: '/worker/development' },
-      { name: 'Green Board', icon: PenTool, path: '/worker/board' },
+      { name: 'Learning Progress', icon: BookOpen, path: '/worker/learning' },
+      { name: 'Adaptive Learning', icon: Brain, path: '/worker/adaptive-learning' },
+      { name: 'Whiteboard', icon: PenTool, path: '/worker/board' },
     ],
   },
   {
-    label: 'Stats',
+    label: 'Nutrition & Health',
     collapsible: true,
     items: [
-      { name: 'Children', icon: Users, path: '/worker/children' },
-      { name: 'Growth Monitoring', icon: Activity, path: '/worker/growth-monitoring' },
-      { name: 'Nutrition', icon: HeartPulse, path: '/worker/nutrition' },
+      { name: 'Nutrition Status', icon: HeartPulse, path: '/worker/nutrition' },
       { name: 'Immunization', icon: Syringe, path: '/worker/immunization' },
-      { name: 'Health', icon: ShieldPlus, path: '/worker/health' },
-      { name: 'Insights', icon: Brain, path: '/worker/insights' },
+    ],
+  },
+  {
+    label: 'Attendance',
+    collapsible: false,
+    items: [{ name: 'Daily Attendance', icon: CalendarDays, path: '/worker/attendance' }],
+  },
+  {
+    label: 'Interventions',
+    collapsible: true,
+    items: [
+      { name: 'Critical Alerts', icon: AlertCircle, path: '/worker/alerts' },
+      { name: 'Suggested Actions', icon: Lightbulb, path: '/worker/insights' },
     ],
   },
   {
@@ -54,9 +62,12 @@ const workerNavGroups = [
     collapsible: false,
     items: [{ name: 'Reports', icon: FileBarChart2, path: '/worker/reports' }],
   },
+  {
+    label: 'Offline Sync',
+    collapsible: false,
+    items: [{ name: 'Offline Sync', icon: WifiOff, path: '/worker/offline-sync' }],
+  },
 ];
-
-const workerNav = workerNavGroups.flatMap((group) => group.items);
 
 const supervisorNavGroups = [
   {
@@ -79,7 +90,6 @@ const supervisorNavGroups = [
     label: 'Health & Stats',
     collapsible: true,
     items: [
-      { name: 'Growth Aggregates', icon: Activity, path: '/supervisor/growth-monitoring' },
       { name: 'Nutrition Tracking', icon: HeartPulse, path: '/supervisor/nutrition' },
       { name: 'Immunization Coverage', icon: Syringe, path: '/supervisor/immunization' },
     ],
@@ -88,13 +98,10 @@ const supervisorNavGroups = [
     label: 'Analytics & Reports',
     collapsible: true,
     items: [
-      { name: 'Block Analytics', icon: BarChart3, path: '/supervisor/analytics' },
       { name: 'Generate Reports', icon: FileBarChart2, path: '/supervisor/reports' }
     ],
   },
 ];
-
-const supervisorNav = supervisorNavGroups.flatMap((group) => group.items);
 
 const adminNav = [
   { name: 'nav.district', icon: LayoutDashboard, path: '/admin' },
@@ -148,11 +155,6 @@ export function Sidebar() {
       return next;
     });
   };
-
-  // Pick correct nav based on role
-  const navItems = userRole === 'worker' ? workerNav
-    : userRole === 'supervisor' ? supervisorNav
-    : adminNav;
 
   const handleLogout = () => {
     logout();

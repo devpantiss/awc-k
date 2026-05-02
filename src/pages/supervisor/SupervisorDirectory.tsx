@@ -9,11 +9,20 @@ export function SupervisorDirectory() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'Good' | 'Warning' | 'Critical' | 'sync'>('all');
 
   const filteredAWCs = mockAWCs.filter(awc => 
-    awc.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    awc.workerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    awc.blockId.toLowerCase().includes(searchTerm.toLowerCase())
+    (
+      awc.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      awc.workerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      awc.blockId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      awc.location.toLowerCase().includes(searchTerm.toLowerCase())
+    ) &&
+    (
+      statusFilter === 'all' ||
+      awc.status === statusFilter ||
+      (statusFilter === 'sync' && awc.syncStatus !== 'synced')
+    )
   );
 
   return (
@@ -21,19 +30,32 @@ export function SupervisorDirectory() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-foreground">Centres Directory</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Manage and track individual Anganwadi Center dashboards across your assigned block.</p>
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">Anganwadi Centre Directory</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Monitor each Anganwadi centre across attendance, learning, nutrition, immunization, and sync readiness.</p>
         </div>
         
-        <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-          <input 
-            type="text" 
-            placeholder="Search by centre, worker, or block..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
-          />
+        <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row">
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
+            className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          >
+            <option value="all">All centres</option>
+            <option value="Critical">Critical</option>
+            <option value="Warning">Warning</option>
+            <option value="Good">Good</option>
+            <option value="sync">Sync issues</option>
+          </select>
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+            <input 
+              type="text" 
+              placeholder="Search by centre, worker, location..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+            />
+          </div>
         </div>
       </div>
 
@@ -45,7 +67,7 @@ export function SupervisorDirectory() {
             className="flex flex-col bg-card border border-border rounded-2xl overflow-hidden hover:shadow-lg hover:border-emerald-500/30 transition-all duration-300 animate-fade-in-up"
             style={{ animationDelay: `${i * 0.05}s`, animationFillMode: 'both' }}
           >
-            {/* Card Header */}
+            {/* Centre Header */}
             <div className="p-5 border-b border-border/50 bg-muted/20 relative">
               <div className="flex justify-between items-start mb-1">
                 <div className="flex items-center gap-2">
@@ -55,7 +77,7 @@ export function SupervisorDirectory() {
                     awc.status === 'Warning' ? 'bg-amber-500 shadow-amber-500/50' : 
                     'bg-red-500 shadow-red-500/50'
                   )} />
-                  <h3 className="text-lg font-bold text-foreground">{awc.name}</h3>
+                  <h3 className="text-lg font-bold text-foreground">{awc.workerName}</h3>
                 </div>
                 <span className={cn(
                   'px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider',
@@ -67,7 +89,7 @@ export function SupervisorDirectory() {
                 </span>
               </div>
               <div className="flex items-center text-sm text-muted-foreground gap-2">
-                <span className="font-medium text-foreground/80">{awc.workerName}</span>
+                <span className="font-medium text-foreground/80">{awc.name}</span>
                 <span>•</span>
                 <span>{awc.blockId}</span>
               </div>
@@ -103,7 +125,7 @@ export function SupervisorDirectory() {
               <div className="space-y-1 col-span-2 mt-2">
                 <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
                   <Activity size={14} />
-                  <span className="text-xs font-medium uppercase tracking-wider">Health & Nutrition</span>
+                  <span className="text-xs font-medium uppercase tracking-wider">Nutrition & Health</span>
                 </div>
                 <div className="flex gap-2">
                   <div className="flex-1 bg-muted/30 rounded-lg p-2 text-center border border-border/50">
@@ -124,6 +146,26 @@ export function SupervisorDirectory() {
                   </div>
                 </div>
               </div>
+
+              <div className="space-y-1 col-span-2">
+                <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                  <Activity size={14} />
+                  <span className="text-xs font-medium uppercase tracking-wider">Sync & Compliance</span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/30 p-2">
+                  <span className={cn(
+                    'rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider',
+                    awc.syncStatus === 'synced' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+                    awc.syncStatus === 'pending' && 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+                    awc.syncStatus === 'error' && 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+                  )}>
+                    {awc.syncStatus}
+                  </span>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Last sync: {new Date(awc.lastSyncTime).toLocaleDateString('en-IN')}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* Card Footer */}
@@ -142,7 +184,7 @@ export function SupervisorDirectory() {
                 className="flex items-center gap-1.5 text-sm font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
               >
                 <LayoutDashboard size={16} />
-                Dashboard
+                Monitor Centre
                 <ChevronRight size={16} />
               </button>
             </div>

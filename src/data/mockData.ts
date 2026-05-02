@@ -106,6 +106,132 @@ export const mockAWCs: AWC[] = [
     attendanceRate: 72, lastSyncTime: new Date(Date.now() - 7200000).toISOString(),
     syncStatus: 'pending'
   },
+  {
+    id: 'awc7', name: 'AWC Rambha-7', workerName: 'Kalyani Behera', workerPhone: '9876543216',
+    location: 'Rambha Village', gpId: 'gp4', blockId: 'b1',
+    totalChildren: 31, presentToday: 29, criticalCases: 0,
+    status: 'Good', alerts: [],
+    avgLearningScore: 78, nutritionBreakdown: { normal: 28, mam: 3, sam: 0 },
+    attendanceRate: 94, lastSyncTime: new Date(Date.now() - 420000).toISOString(),
+    syncStatus: 'synced'
+  },
+  {
+    id: 'awc8', name: 'AWC Chatrapur-8', workerName: 'Basanti Sahu', workerPhone: '9876543217',
+    location: 'Chatrapur Ward-8', gpId: 'gp4', blockId: 'b1',
+    totalChildren: 36, presentToday: 24, criticalCases: 2,
+    status: 'Warning', alerts: ['Attendance below target', '2 immunization follow-ups due'],
+    avgLearningScore: 61, nutritionBreakdown: { normal: 29, mam: 5, sam: 2 },
+    attendanceRate: 67, lastSyncTime: new Date(Date.now() - 10800000).toISOString(),
+    syncStatus: 'pending'
+  },
+  {
+    id: 'awc9', name: 'AWC Narendrapur-9', workerName: 'Mina Pradhan', workerPhone: '9876543218',
+    location: 'Narendrapur Village', gpId: 'gp5', blockId: 'b1',
+    totalChildren: 27, presentToday: 26, criticalCases: 0,
+    status: 'Good', alerts: [],
+    avgLearningScore: 84, nutritionBreakdown: { normal: 26, mam: 1, sam: 0 },
+    attendanceRate: 96, lastSyncTime: new Date(Date.now() - 90000).toISOString(),
+    syncStatus: 'synced'
+  },
+  {
+    id: 'awc10', name: 'AWC Purunabandha-10', workerName: 'Sabitri Nayak', workerPhone: '9876543219',
+    location: 'Purunabandha Village', gpId: 'gp5', blockId: 'b1',
+    totalChildren: 33, presentToday: 19, criticalCases: 5,
+    status: 'Critical', alerts: ['High SAM cases', 'THR distribution gap', 'Device offline 2 days'],
+    avgLearningScore: 48, nutritionBreakdown: { normal: 22, mam: 6, sam: 5 },
+    attendanceRate: 58, lastSyncTime: new Date(Date.now() - 86400000 * 2).toISOString(),
+    syncStatus: 'error'
+  },
+  {
+    id: 'awc11', name: 'AWC Keshapur-11', workerName: 'Anjali Das', workerPhone: '9876543220',
+    location: 'Keshapur Village', gpId: 'gp6', blockId: 'b1',
+    totalChildren: 29, presentToday: 25, criticalCases: 1,
+    status: 'Good', alerts: [],
+    avgLearningScore: 69, nutritionBreakdown: { normal: 25, mam: 3, sam: 1 },
+    attendanceRate: 86, lastSyncTime: new Date(Date.now() - 180000).toISOString(),
+    syncStatus: 'synced'
+  },
+  {
+    id: 'awc12', name: 'AWC Jagannathpur-12', workerName: 'Bimala Panda', workerPhone: '9876543221',
+    location: 'Jagannathpur Village', gpId: 'gp6', blockId: 'b1',
+    totalChildren: 41, presentToday: 31, criticalCases: 2,
+    status: 'Warning', alerts: ['Learning score below block target'],
+    avgLearningScore: 56, nutritionBreakdown: { normal: 34, mam: 5, sam: 2 },
+    attendanceRate: 76, lastSyncTime: new Date(Date.now() - 5400000).toISOString(),
+    syncStatus: 'pending'
+  },
+  {
+    id: 'awc13', name: 'AWC Palur-13', workerName: 'Saraswati Rout', workerPhone: '9876543222',
+    location: 'Palur Village', gpId: 'gp7', blockId: 'b1',
+    totalChildren: 24, presentToday: 23, criticalCases: 0,
+    status: 'Good', alerts: [],
+    avgLearningScore: 80, nutritionBreakdown: { normal: 23, mam: 1, sam: 0 },
+    attendanceRate: 96, lastSyncTime: new Date(Date.now() - 240000).toISOString(),
+    syncStatus: 'synced'
+  },
+  {
+    id: 'awc14', name: 'AWC Rangeilunda-14', workerName: 'Tilottama Jena', workerPhone: '9876543223',
+    location: 'Rangeilunda Village', gpId: 'gp7', blockId: 'b1',
+    totalChildren: 37, presentToday: 27, criticalCases: 3,
+    status: 'Warning', alerts: ['3 children at nutrition risk', 'MDD counselling needed'],
+    avgLearningScore: 63, nutritionBreakdown: { normal: 28, mam: 6, sam: 3 },
+    attendanceRate: 73, lastSyncTime: new Date(Date.now() - 3600000).toISOString(),
+    syncStatus: 'synced'
+  },
+  {
+    id: 'awc15', name: 'AWC Lanjipalli-15', workerName: 'Nirmala Patnaik', workerPhone: '9876543224',
+    location: 'Lanjipalli Ward-15', gpId: 'gp8', blockId: 'b1',
+    totalChildren: 44, presentToday: 39, criticalCases: 1,
+    status: 'Good', alerts: [],
+    avgLearningScore: 74, nutritionBreakdown: { normal: 39, mam: 4, sam: 1 },
+    attendanceRate: 89, lastSyncTime: new Date(Date.now() - 660000).toISOString(),
+    syncStatus: 'synced'
+  },
+  {
+    id: 'awc16', name: 'AWC Khalikote-16', workerName: 'Rekha Gouda', workerPhone: '9876543225',
+    location: 'Khalikote Village', gpId: 'gp8', blockId: 'b1',
+    totalChildren: 32, presentToday: 16, criticalCases: 4,
+    status: 'Critical', alerts: ['Attendance crisis', 'SAM verification pending', 'Supervisor visit overdue'],
+    avgLearningScore: 42, nutritionBreakdown: { normal: 21, mam: 7, sam: 4 },
+    attendanceRate: 50, lastSyncTime: new Date(Date.now() - 86400000 * 4).toISOString(),
+    syncStatus: 'error'
+  },
+  {
+    id: 'awc17', name: 'AWC Chamakhandi-17', workerName: 'Gouri Mishra', workerPhone: '9876543226',
+    location: 'Chamakhandi Village', gpId: 'gp9', blockId: 'b1',
+    totalChildren: 26, presentToday: 22, criticalCases: 1,
+    status: 'Good', alerts: [],
+    avgLearningScore: 71, nutritionBreakdown: { normal: 23, mam: 2, sam: 1 },
+    attendanceRate: 85, lastSyncTime: new Date(Date.now() - 300000).toISOString(),
+    syncStatus: 'synced'
+  },
+  {
+    id: 'awc18', name: 'AWC Nuagaon-18', workerName: 'Puspalata Bisoyi', workerPhone: '9876543227',
+    location: 'Nuagaon Village', gpId: 'gp9', blockId: 'b1',
+    totalChildren: 34, presentToday: 28, criticalCases: 2,
+    status: 'Warning', alerts: ['Immunization overdue list growing'],
+    avgLearningScore: 66, nutritionBreakdown: { normal: 28, mam: 4, sam: 2 },
+    attendanceRate: 82, lastSyncTime: new Date(Date.now() - 14400000).toISOString(),
+    syncStatus: 'pending'
+  },
+  {
+    id: 'awc19', name: 'AWC Aryapalli-19', workerName: 'Padma Kumari', workerPhone: '9876543228',
+    location: 'Aryapalli Village', gpId: 'gp10', blockId: 'b1',
+    totalChildren: 30, presentToday: 28, criticalCases: 0,
+    status: 'Good', alerts: [],
+    avgLearningScore: 77, nutritionBreakdown: { normal: 28, mam: 2, sam: 0 },
+    attendanceRate: 93, lastSyncTime: new Date(Date.now() - 120000).toISOString(),
+    syncStatus: 'synced'
+  },
+  {
+    id: 'awc20', name: 'AWC Chikiti-20', workerName: 'Malati Swain', workerPhone: '9876543229',
+    location: 'Chikiti Village', gpId: 'gp10', blockId: 'b1',
+    totalChildren: 39, presentToday: 26, criticalCases: 3,
+    status: 'Warning', alerts: ['Low attendance trend', 'THR records pending'],
+    avgLearningScore: 59, nutritionBreakdown: { normal: 30, mam: 6, sam: 3 },
+    attendanceRate: 67, lastSyncTime: new Date(Date.now() - 21600000).toISOString(),
+    syncStatus: 'pending'
+  },
 ];
 
 // ---- Generate weight history ----

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Modal } from '../../components/ui/modal';
+import { SideDrawer } from '../../components/ui/side-drawer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import type { ManagedChild } from '../../data/childMonitoringData';
+import { Baby, ClipboardList, Phone, Scale } from 'lucide-react';
 
 type ChildFormValues = {
   name: string;
@@ -60,6 +61,7 @@ export function AddChildModal({ open, onOpenChange, onSubmit, initialChild }: Ad
   }, [initialChild, open]);
 
   const title = useMemo(() => (initialChild ? 'Edit Child' : 'Add Child'), [initialChild]);
+  const submitLabel = initialChild ? 'Save Changes' : 'Add Child';
 
   const validate = () => {
     const nextErrors: Record<string, string> = {};
@@ -96,91 +98,185 @@ export function AddChildModal({ open, onOpenChange, onSubmit, initialChild }: Ad
   };
 
   return (
-    <Modal
+    <SideDrawer
       open={open}
       onOpenChange={onOpenChange}
       title={title}
       description="Maintain child registration details for monitoring, follow-up, and service delivery."
+      className="sm:max-w-3xl"
+      footer={
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">
+            Required fields are saved into the child monitoring register.
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" form="child-registration-form">{submitLabel}</Button>
+          </div>
+        </div>
+      }
     >
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Child Name</label>
-            <Input
-              value={form.name}
-              onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-              placeholder="Enter child name"
-            />
-            {errors.name ? <p className="text-xs text-red-500">{errors.name}</p> : null}
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Date of Birth</label>
-            <Input
-              type="date"
-              value={form.dob}
-              onChange={(event) => setForm((current) => ({ ...current, dob: event.target.value }))}
-            />
-            {errors.dob ? <p className="text-xs text-red-500">{errors.dob}</p> : null}
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Gender</label>
-            <Select
-              value={form.gender}
-              onValueChange={(value: 'Male' | 'Female') => setForm((current) => ({ ...current, gender: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select gender" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Male">Male</SelectItem>
-                <SelectItem value="Female">Female</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.gender ? <p className="text-xs text-red-500">{errors.gender}</p> : null}
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Parent Name</label>
-            <Input
-              value={form.parentName}
-              onChange={(event) => setForm((current) => ({ ...current, parentName: event.target.value }))}
-              placeholder="Enter parent name"
-            />
-            {errors.parentName ? <p className="text-xs text-red-500">{errors.parentName}</p> : null}
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Phone Number</label>
-            <Input
-              value={form.phoneNumber}
-              onChange={(event) => setForm((current) => ({ ...current, phoneNumber: event.target.value.replace(/\D/g, '').slice(0, 10) }))}
-              placeholder="10-digit mobile number"
-            />
-            {errors.phoneNumber ? <p className="text-xs text-red-500">{errors.phoneNumber}</p> : null}
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Birth Weight</label>
-            <Input
-              type="number"
-              step="0.1"
-              value={form.birthWeight}
-              onChange={(event) => setForm((current) => ({ ...current, birthWeight: event.target.value }))}
-              placeholder="Weight in kg"
-            />
-            {errors.birthWeight ? <p className="text-xs text-red-500">{errors.birthWeight}</p> : null}
+      <form id="child-registration-form" onSubmit={handleSubmit} className="space-y-5">
+        <div className="rounded-2xl border border-border bg-muted/30 p-1">
+          <div className="grid gap-1 sm:grid-cols-3">
+            {[
+              { label: 'Profile', icon: Baby, active: true },
+              { label: 'Guardian', icon: Phone, active: true },
+              { label: 'Baseline', icon: Scale, active: true },
+            ].map((step) => (
+              <div
+                key={step.label}
+                className="flex items-center justify-center gap-2 rounded-xl bg-card px-3 py-2 text-xs font-bold uppercase tracking-wider text-foreground shadow-sm"
+              >
+                <step.icon size={14} className="text-primary" />
+                {step.label}
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button type="submit">{initialChild ? 'Save Changes' : 'Add Child'}</Button>
-        </div>
+        <FormSection
+          icon={Baby}
+          title="Child Profile"
+          description="Core identity fields used across attendance, nutrition, and development tracking."
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField label="Child Name" error={errors.name}>
+              <Input
+                value={form.name}
+                onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                placeholder="Enter child name"
+              />
+            </FormField>
+
+            <FormField label="Date of Birth" error={errors.dob}>
+              <Input
+                type="date"
+                value={form.dob}
+                onChange={(event) => setForm((current) => ({ ...current, dob: event.target.value }))}
+              />
+            </FormField>
+
+            <FormField label="Gender" error={errors.gender}>
+              <Select
+                value={form.gender}
+                onValueChange={(value: 'Male' | 'Female') => setForm((current) => ({ ...current, gender: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Male">Male</SelectItem>
+                  <SelectItem value="Female">Female</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormField>
+
+            <FormField label="Calculated Age">
+              <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm font-medium text-muted-foreground">
+                {form.dob ? getAgeLabel(form.dob) : 'Select date of birth'}
+              </div>
+            </FormField>
+          </div>
+        </FormSection>
+
+        <FormSection
+          icon={Phone}
+          title="Guardian Details"
+          description="Contact information for service updates, visits, and parent engagement."
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField label="Parent Name" error={errors.parentName}>
+              <Input
+                value={form.parentName}
+                onChange={(event) => setForm((current) => ({ ...current, parentName: event.target.value }))}
+                placeholder="Enter parent name"
+              />
+            </FormField>
+
+            <FormField label="Phone Number" error={errors.phoneNumber}>
+              <Input
+                value={form.phoneNumber}
+                onChange={(event) => setForm((current) => ({ ...current, phoneNumber: event.target.value.replace(/\D/g, '').slice(0, 10) }))}
+                placeholder="10-digit mobile number"
+              />
+            </FormField>
+          </div>
+        </FormSection>
+
+        <FormSection
+          icon={ClipboardList}
+          title="Health Baseline"
+          description="Starting values used by the growth and nutrition registers."
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField label="Birth Weight" error={errors.birthWeight}>
+              <Input
+                type="number"
+                step="0.1"
+                value={form.birthWeight}
+                onChange={(event) => setForm((current) => ({ ...current, birthWeight: event.target.value }))}
+                placeholder="Weight in kg"
+              />
+            </FormField>
+
+            <FormField label="Nutrition Status">
+              <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm font-medium text-muted-foreground">
+                {initialChild?.nutritionStatus ?? 'Normal'}
+              </div>
+            </FormField>
+          </div>
+        </FormSection>
       </form>
-    </Modal>
+    </SideDrawer>
+  );
+}
+
+function FormSection({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: typeof Baby;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-border bg-card">
+      <div className="border-b border-border px-4 py-3">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Icon size={17} />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-foreground">{title}</h3>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+          </div>
+        </div>
+      </div>
+      <div className="p-4">{children}</div>
+    </section>
+  );
+}
+
+function FormField({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</label>
+      {children}
+      {error ? <p className="text-xs font-medium text-red-500">{error}</p> : null}
+    </div>
   );
 }

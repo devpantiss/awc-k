@@ -12,25 +12,21 @@ import { WorkerDashboard } from './pages/worker/WorkerDashboard';
 import { WorkerChildren } from './pages/worker/WorkerChildren';
 import { ChildProfile } from './pages/worker/ChildProfile';
 import { AdaptiveLearning } from './pages/worker/AdaptiveLearning';
+import { WorkerAdaptiveLearning } from './pages/worker/WorkerAdaptiveLearning';
 import { GreenBoardPage } from './pages/worker/GreenBoardPage';
 import { WorkerAlerts } from './pages/worker/WorkerAlerts';
 import { WorkerInsights } from './pages/worker/WorkerInsights';
-import { GrowthMonitoring } from './pages/worker/GrowthMonitoring';
 import { Nutrition } from './pages/worker/Nutrition';
 import { Immunization } from './pages/worker/Immunization';
-import { Development } from './pages/worker/Development';
 import { Attendance } from './pages/worker/Attendance';
-import { Health } from './pages/worker/Health';
 import { Reports } from './pages/worker/Reports';
-import { HealthNutrition } from './pages/worker/HealthNutrition';
-import { ParentEngagement } from './pages/worker/ParentEngagement';
+import { OfflineSync } from './pages/worker/OfflineSync';
 
 // Supervisor pages
 import { SupervisorDashboard } from './pages/supervisor/SupervisorDashboard';
 import { SupervisorDirectory } from './pages/supervisor/SupervisorDirectory';
 import { AWCDetail } from './pages/supervisor/AWCDetail';
 import { SupervisorAttendance } from './pages/supervisor/SupervisorAttendance';
-import { SupervisorGrowth } from './pages/supervisor/SupervisorGrowth';
 import { SupervisorNutrition } from './pages/supervisor/SupervisorNutrition';
 import { SupervisorLearning } from './pages/supervisor/SupervisorLearning';
 import { SupervisorImmunization } from './pages/supervisor/SupervisorImmunization';
@@ -53,19 +49,16 @@ export default function App() {
         <Route index element={<WorkerDashboard />} />
         <Route path="child/:childId" element={<ChildProfile />} />
         <Route path="children" element={<WorkerChildren />} />
-        <Route path="growth-monitoring" element={<GrowthMonitoring />} />
         <Route path="nutrition" element={<Nutrition />} />
         <Route path="immunization" element={<Immunization />} />
-        <Route path="development" element={<Development />} />
         <Route path="attendance" element={<Attendance />} />
-        <Route path="health" element={<Health />} />
         <Route path="reports" element={<Reports />} />
         <Route path="learning" element={<AdaptiveLearning />} />
-        <Route path="nutrition-insights" element={<HealthNutrition />} />
-        <Route path="parents" element={<ParentEngagement />} />
+        <Route path="adaptive-learning" element={<WorkerAdaptiveLearning />} />
         <Route path="board" element={<GreenBoardPage />} />
         <Route path="alerts" element={<WorkerAlerts />} />
         <Route path="insights" element={<WorkerInsights />} />
+        <Route path="offline-sync" element={<OfflineSync />} />
       </Route>
 
       {/* Supervisor Routes */}
@@ -73,9 +66,8 @@ export default function App() {
         <Route index element={<SupervisorDashboard />} />
         <Route path="awc-list" element={<SupervisorDirectory />} />
         <Route path="awc/:awcId" element={<AWCDetail />} />
-        <Route path="analytics" element={<SupervisorDashboard />} />
+        <Route path="child/:childId" element={<ChildProfile />} />
         <Route path="attendance" element={<SupervisorAttendance />} />
-        <Route path="growth-monitoring" element={<SupervisorGrowth />} />
         <Route path="nutrition" element={<SupervisorNutrition />} />
         <Route path="learning" element={<SupervisorLearning />} />
         <Route path="immunization" element={<SupervisorImmunization />} />

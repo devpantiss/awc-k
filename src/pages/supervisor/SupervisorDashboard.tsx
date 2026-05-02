@@ -13,7 +13,7 @@ import { DashboardSkeleton } from '../../components/ui/loading-skeleton';
 import {
   Users, TrendingUp, AlertTriangle, Building2, BarChart3,
   ChevronRight, Activity, Apple, ShieldCheck, HeartPulse,
-  BookOpen, CalendarCheck2, MessageSquareHeart, Sparkles, Stars, PieChart as PieIcon,
+  BookOpen, CalendarCheck2, Sparkles, Stars, PieChart as PieIcon,
   AlertCircle, Crosshair, ClipboardList
 } from 'lucide-react';
 import {
@@ -59,6 +59,7 @@ export function SupervisorDashboard() {
         nutritionBurden: getNutritionBurden(awc),
         learningGap,
         riskLabel: getLearningRiskLabel(awc.avgLearningScore),
+        syncRisk: awc.syncStatus === 'error' ? 20 : awc.syncStatus === 'pending' ? 10 : 0,
       };
     });
   }, []);
@@ -93,8 +94,26 @@ export function SupervisorDashboard() {
   const highestAttendanceCentre = [...centerWiseData].sort((a, b) => b.attendance - a.attendance)[0];
   const highestBurdenCentre = [...centerWiseData].sort((a, b) => b.nutritionBurden - a.nutritionBurden)[0];
   const centreRankings = [...centerWiseData]
-    .sort((a, b) => ((100 - b.attendance) + b.learningGap + b.nutritionBurden) - ((100 - a.attendance) + a.learningGap + a.nutritionBurden))
-    .slice(0, 4);
+    .map((awc) => ({
+      ...awc,
+      riskScore: Math.round((100 - awc.attendance) + awc.learningGap + awc.nutritionBurden + awc.criticalCases * 4 + awc.syncRisk),
+    }))
+    .sort((a, b) => b.riskScore - a.riskScore)
+    .slice(0, 5);
+  const syncIssues = centerWiseData.filter((awc) => awc.syncStatus !== 'synced');
+  const criticalCentres = centerWiseData.filter((awc) => awc.status === 'Critical');
+  const followUpActions = centreRankings.slice(0, 4).map((awc) => {
+    const action =
+      awc.syncStatus === 'error'
+        ? 'Request immediate data sync'
+        : awc.nutritionBreakdown.sam > 0
+          ? 'Schedule nutrition verification visit'
+          : awc.attendance < 75
+            ? 'Call worker for attendance recovery plan'
+            : 'Review learning support plan';
+
+    return { awc, action };
+  });
 
   // 2. Trend Data
   const weeklyTrendData = [
@@ -140,7 +159,7 @@ export function SupervisorDashboard() {
               </h2>
               <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
                 <Building2 size={16} />
-                {t('supervisor.block_overview')} • {mockAWCs.length} Centes
+                {t('supervisor.block_overview')} • {mockAWCs.length} Centres
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -154,7 +173,7 @@ export function SupervisorDashboard() {
                   <option key={awc.id} value={awc.id}>{awc.name}</option>
                 ))}
               </select>
-              <button onClick={() => navigate('/supervisor/directory')} className="rounded-2xl border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground hover:bg-accent transition-colors shadow-sm">
+              <button onClick={() => navigate('/supervisor/awc-list')} className="rounded-2xl border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground hover:bg-accent transition-colors shadow-sm">
                 View All Centres
               </button>
               <button
@@ -178,7 +197,7 @@ export function SupervisorDashboard() {
             icon: Users,
             tone: 'sky',
             meta: `${formatIndianNumber(totalPresent)} present today`,
-            action: '/supervisor/directory'
+            action: '/supervisor/awc-list'
           },
           {
             label: 'Avg Learning Score',
@@ -234,6 +253,14 @@ export function SupervisorDashboard() {
             tone: 'sky',
             meta: 'Take Home Ration reach',
             action: '/supervisor/nutrition'
+          },
+          {
+            label: 'Sync / Compliance Issues',
+            value: syncIssues.length,
+            icon: Crosshair,
+            tone: syncIssues.length > 0 ? 'amber' : 'emerald',
+            meta: syncIssues.length > 0 ? 'Centres need data follow-up' : 'All centres synced',
+            action: '/supervisor/awc-list'
           },
         ].map((card, index) => (
           <motion.div
@@ -297,6 +324,165 @@ export function SupervisorDashboard() {
             )}
           </motion.div>
         ))}
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+        <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">20-centre command view</p>
+              <h3 className="mt-1 text-2xl font-bold tracking-tight text-foreground">Priority Centre Ranking</h3>
+              <p className="mt-2 text-sm text-muted-foreground">Composite risk score using attendance gap, learning gap, nutrition burden, critical cases, and sync status.</p>
+            </div>
+            <button
+              onClick={() => navigate('/supervisor/awc-list')}
+              className="rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+            >
+              Open Centre Directory
+            </button>
+          </div>
+
+          <div className="mt-6 space-y-3">
+            {centreRankings.map((awc, index) => (
+              <button
+                key={awc.id}
+                type="button"
+                onClick={() => navigate(`/supervisor/awc/${awc.id}`)}
+                className="flex w-full flex-col gap-3 rounded-[1.5rem] border border-border bg-background/70 p-4 text-left transition-colors hover:bg-accent sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex items-start gap-3">
+                  <div className={cn(
+                    'flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-sm font-bold',
+                    index === 0 ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                  )}>
+                    {index + 1}
+                  </div>
+                  <div>
+                    <p className="font-bold text-foreground">{awc.name}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{awc.workerName} • {awc.location}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-2 text-right text-xs sm:min-w-[360px]">
+                  <div>
+                    <p className="text-muted-foreground">Risk</p>
+                    <p className="font-bold text-foreground">{awc.riskScore}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Att.</p>
+                    <p className="font-bold text-foreground">{awc.attendance}%</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">SAM</p>
+                    <p className="font-bold text-foreground">{awc.nutritionBreakdown.sam}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Sync</p>
+                    <p className={cn(
+                      'font-bold capitalize',
+                      awc.syncStatus === 'synced' && 'text-emerald-600',
+                      awc.syncStatus === 'pending' && 'text-amber-600',
+                      awc.syncStatus === 'error' && 'text-red-600'
+                    )}>{awc.syncStatus}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">Supervisor follow-up</p>
+            <h3 className="mt-1 text-2xl font-bold tracking-tight text-foreground">Action Tracker</h3>
+            <p className="mt-2 text-sm text-muted-foreground">Dummy action queue for calls, visits, sync requests, and nutrition escalation.</p>
+          </div>
+
+          <div className="mt-6 grid gap-3">
+            {followUpActions.map(({ awc, action }) => (
+              <div key={awc.id} className="rounded-[1.4rem] border border-border bg-background/70 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-foreground">{awc.name}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{awc.workerName}</p>
+                  </div>
+                  <span className={cn(
+                    'rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider',
+                    awc.status === 'Critical' && 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+                    awc.status === 'Warning' && 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+                    awc.status === 'Good' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                  )}>{awc.status}</span>
+                </div>
+                <p className="mt-3 text-sm font-medium text-foreground">{action}</p>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                  <button onClick={() => navigate(`/supervisor/awc/${awc.id}`)} className="rounded-full bg-primary px-3 py-1.5 font-semibold text-primary-foreground">Open centre</button>
+                  <span className="rounded-full border border-border bg-card px-3 py-1.5 text-muted-foreground">Due this week</span>
+                  {awc.syncStatus !== 'synced' && <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 font-semibold text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">Sync follow-up</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">Supervisor monitoring</p>
+            <h3 className="mt-1 text-2xl font-bold tracking-tight text-foreground">Centre Performance Overview</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Review each Anganwadi centre across attendance, learning, nutrition, immunization, and sync readiness.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/supervisor/awc-list')}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+          >
+            <ClipboardList size={16} />
+            Open Directory
+          </button>
+        </div>
+
+        <div className="mt-6 grid gap-4 xl:grid-cols-3">
+          {centerWiseData.slice(0, 6).map((awc) => {
+            const healthTone = awc.nutritionBreakdown.sam > 0 || awc.criticalCases > 0 ? 'red' : awc.nutritionBreakdown.mam > 0 ? 'amber' : 'emerald';
+
+            return (
+              <button
+                key={awc.id}
+                onClick={() => navigate(`/supervisor/awc/${awc.id}`)}
+                className="rounded-[1.75rem] border border-border bg-background/60 p-4 text-left transition-all hover:-translate-y-0.5 hover:bg-accent hover:shadow-md"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-bold text-foreground">{awc.workerName}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{awc.name} · {awc.location}</p>
+                  </div>
+                  <span className={cn(
+                    'rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider',
+                    awc.status === 'Good' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+                    awc.status === 'Warning' && 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+                    awc.status === 'Critical' && 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+                  )}>
+                    {awc.status}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  {[
+                    { label: 'Attendance', value: `${awc.attendance}%`, tone: awc.attendance >= 85 ? 'text-emerald-600' : awc.attendance >= 70 ? 'text-amber-600' : 'text-red-600' },
+                    { label: 'Learning', value: `${awc.learning}%`, tone: awc.learning >= 70 ? 'text-emerald-600' : awc.learning >= 50 ? 'text-amber-600' : 'text-red-600' },
+                    { label: 'Nutrition', value: `${awc.nutritionBreakdown.sam} SAM`, tone: healthTone === 'red' ? 'text-red-600' : healthTone === 'amber' ? 'text-amber-600' : 'text-emerald-600' },
+                  ].map((metric) => (
+                    <div key={metric.label} className="rounded-2xl border border-border bg-card px-3 py-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{metric.label}</p>
+                      <p className={cn('mt-1 text-sm font-bold', metric.tone)}>{metric.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -603,7 +789,7 @@ export function SupervisorDashboard() {
                 {[
                   { label: 'Nutrition Discrepancy Tracking', icon: HeartPulse, action: '/supervisor/nutrition' },
                   { label: 'Block Level Reports', icon: BookOpen, action: '/supervisor/reports' },
-                  { label: 'Manage All AWCs', icon: Building2, action: '/supervisor/directory' },
+                  { label: 'Manage All AWCs', icon: Building2, action: '/supervisor/awc-list' },
                 ].map((item) => (
                 <button
                   key={item.label}
@@ -625,13 +811,13 @@ export function SupervisorDashboard() {
           <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h3 className="text-xl font-semibold text-foreground">Centre Priority Tracker</h3>
-                <p className="mt-2 text-sm text-muted-foreground">Composite ranking of centres needing attention across attendance, learning, and nutrition burden.</p>
+                <h3 className="text-xl font-semibold text-foreground">Sync & Compliance Watch</h3>
+                <p className="mt-2 text-sm text-muted-foreground">Centres where delayed sync or critical status can hide real service-delivery gaps.</p>
               </div>
-              <MessageSquareHeart className="text-indigo-600" size={22} />
+              <Crosshair className="text-indigo-600" size={22} />
             </div>
             <div className="mt-6 space-y-3">
-              {centreRankings.map((awc, index) => (
+              {[...syncIssues, ...criticalCentres.filter((awc) => !syncIssues.some((item) => item.id === awc.id))].slice(0, 5).map((awc) => (
                 <button
                   key={awc.id}
                   onClick={() => {
@@ -640,17 +826,27 @@ export function SupervisorDashboard() {
                   className="flex w-full items-start justify-between rounded-[1.3rem] border border-border bg-background/60 p-4 text-left transition-colors hover:bg-accent"
                 >
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Priority {index + 1}</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{awc.syncStatus === 'synced' ? 'Critical centre' : 'Sync follow-up'}</p>
                     <p className="mt-2 font-semibold text-foreground">{awc.name}</p>
                     <p className="mt-1 text-xs text-muted-foreground">{awc.workerName}</p>
                   </div>
                   <div className="text-right text-xs text-muted-foreground">
-                    <p>{awc.attendance}% attendance</p>
-                    <p className="mt-1">{awc.learningGap} pts gap</p>
-                    <p className="mt-1">{awc.nutritionBurden}% burden</p>
+                    <p className={cn(
+                      'font-bold capitalize',
+                      awc.syncStatus === 'synced' && 'text-emerald-600',
+                      awc.syncStatus === 'pending' && 'text-amber-600',
+                      awc.syncStatus === 'error' && 'text-red-600'
+                    )}>{awc.syncStatus}</p>
+                    <p className="mt-1">{awc.criticalCases} critical</p>
+                    <p className="mt-1">{awc.lastSyncTime ? new Date(awc.lastSyncTime).toLocaleDateString('en-IN') : 'No sync'}</p>
                   </div>
                 </button>
               ))}
+              {syncIssues.length === 0 && criticalCentres.length === 0 ? (
+                <div className="rounded-[1.3rem] border border-border bg-background/60 p-4 text-sm text-muted-foreground">
+                  All centres are currently synced and no critical centre needs immediate compliance review.
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useMemo, useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Edit3, Eye, Filter, Plus, Search, Users } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -26,11 +26,27 @@ import { cn } from '../../utils';
 
 export function WorkerChildren() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [children, setChildren] = useState<ManagedChild[]>(managedChildren);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'Normal' | 'Moderate' | 'Severe'>('all');
-  const [modalOpen, setModalOpen] = useState(false);
+  
+  // Initialize modalOpen based on URL param
+  const [modalOpen, setModalOpen] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('add') === 'true';
+  });
+  
   const [editingChild, setEditingChild] = useState<ManagedChild | null>(null);
+
+  // Sync modal open state if URL param changes
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('add') === 'true') {
+      setEditingChild(null);
+      setModalOpen(true);
+    }
+  }, [location.search]);
 
   const filteredChildren = useMemo(() => {
     return children.filter((child) => {
